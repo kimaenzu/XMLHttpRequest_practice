@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style stylesheet="text/css">
+        .navi {
+            display: flex;
+            justify-self: center;
+            width: 700px;
+            height: 50px;
+        }
+
+        .navi>button {
+            width: 100px;
+            height: 25px;
+        }
+
+        pre {
+            margin-left: 20px;
+            border: 1cap solid black;
+            width: 700px;
+            font-size: large;
+        }
+
+        #left_box {
+            float: left;
+            margin-right: 20px;
+        }
+
+        pre {
+            width: 300px;
+            height: 500px;
+            overflow: scroll;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="navi">
+        <button onclick="get()">전체 불러오기</button><br><br>
+        <button onclick="search_res()">검색</button><br><br>
+        <button onclick="modify_res()">수정</button><br><br>
+        <button onclick="delete_res()">삭제</button><br><br>
+        <button onclick="append_res()">추가</button><br><br>
+    </div>
+    <form>
+        <div id="left_box">
+            <label for="name">이름:</label>
+            <input type="text" id="name" name="name"><br>
+            <label for="sub">과목:</label>
+            <input type="text" id="sub" name="sub"><br>
+            <label for="sco">점수:</label>
+            <input type="text" id="sco" name="sco"><br><br><br>
+        </div>
+        <div id="right_box">
+            <label for="sci">과학:</label>
+            <input type="text" id="sci" name="sci"><br>
+            <label for="soc">사회:</label>
+            <input type="text" id="soc" name="soc"><br>
+            <label for="geo">지리:</label>
+            <input type="text" id="geo" name="geo"><br>
+            <label for="cul">문화:</label>
+            <input type="text" id="cul" name="cul"><br>
+        </div>
+    </form>
+    <pre></pre>
+
+    <script>
+
+        // GET 방식으로 JSON 형태 출력
+        function get() {
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", "http://localhost:3000/student");
+            xhr.send();
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    document.querySelector("pre").innerHTML = xhr.response;
+                } else {
+                    console.error("Error", xhr.status, xhr.statusText);
+                }
+            };
+        }
+
+        /*
+        id로 수정하거나 검색할 때 get_id()를 사용하면 함수 안에서 바꿔야 함.
+        search 인지 modify인지 Delete인지 파라미터로 전달해서 맞는 함수를 실행시킴.
+        */
+        function get_id(req) {
+
+            if (isNaN(document.getElementById("sco").value)) {
+                document.getElementById("error").innerHTML = "잘못된 입력 : 점수는 숫자로 입력해주세요.";
+                return;
+            }
+
+            // 입력받은 값으로 id를 반환
+            const newName = document.getElementById("name").value;
+            const newSub = document.getElementById("sub").value;
+            var newSco = document.getElementById("sco").value;
+            //console.log("input data :: " + newName + ":" + newSub + ":" + newSco);
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", "http://localhost:3000/student");
+            xhr.send();
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    // 새로운 학생을 추가하는 경우: 기존 저장되어 있는 데이터에서 맞는 값을 찾을 수 없으므로 먼저 실행한다. (student: undefined)
+                    if (req == append_res) {
+                        return JSON.parse(xhr.response).length;
+                    }
+                    else {
+                        const student = JSON.parse(xhr.response).find(item => item.name === newName);
+                        if (req == modify_res) {
+                            if (newSub == 'sci') student.sci = newSco;
+                            if (newSub == 'soc') student.soc = newSco;
+                            if (newSub == 'geo') student.geo = newSco;
+                            if (newSub == 'cul') student.cul = newSco;
+                            modify(student);
+                        }
+                        else if (req == search_res) search(student);
+                        else if (req == delete_res) Delete(student);
+                        else console.log("warn : get_id() not used");
+
+                        document.getElementById("name").value = "";
+                        document.getElementById("sub").value = "";
+                        document.getElementById("sco").value = "";
+                    }
+                } else {
+                    console.log("get_id() fail..");
+                    console.log("error: get_id()");
+                }
+            }
+        }
+
+        function search(student) {
+            console.log(student);
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", "http://localhost:3000/student/" + student.id);
+            xhr.send();
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    document.querySelector("pre").innerHTML = xhr.response;
+                } else {
+                    console.log("search() fail..");
+                    console.error("Error", xhr.status, xhr.statusText);
+                }
+            };
+        }
+
+        function modify(student) {
+            const xhr_patch = new XMLHttpRequest();
+            xhr_patch.open('PATCH', 'http://localhost:3000/student/' + student.id);
+            xhr_patch.setRequestHeader('content-type', 'application/json');
+            xhr_patch.send(JSON.stringify(student));
+            xhr_patch.onload = () => {
+                if (xhr_patch.status === 200) {
+                    document.querySelector('pre').textContent = xhr_patch.response;
+                } else {
+                    console.log("modify fail..");
+                    console.error('Error', xhr_patch.status, xhr_patch.statusText);
+                }
+            };
+        }
+
+        function Delete(student) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('DELETE', 'http://localhost:3000/student/' + student.id)
+            xhr.send();
+            xhr.onload = () => {
+                console.log("patch-onload");
+                if (xhr.status === 200) {
+                    document.querySelector('pre').innerHTML = `${student.name}학생의 데이터가 삭제되었습니다.`;
+                } else {
+                    console.log("delete fail..");
+                    console.error('Error', xhr.status, xhr.statusText);
+                }
+            };
+        }
+
+        function search_res() {
+            get_id(search_res);
+        }
+        function modify_res() {
+            get_id(modify_res);
+        }
+        function delete_res() {
+            get_id(delete_res);
+        }
+        function append_res() {
+            const id = get_id(append_res);
+            const newName = document.getElementById("name").value;
+            const sci = document.getElementById("sci").value;
+            const soc = document.getElementById("soc").value;
+            const geo = document.getElementById("geo").value;
+            const cul = document.getElementById("cul").value;
+            //console.log("input data :: " + newName + ":" + sci + ":" + sco + ":" + geo + ":" + cul);
+
+            // 새로운 객체 생성
+            let NewStudent = {
+                id: id,
+                name: newName,
+                sci: sci,
+                soc: soc,
+                geo: geo,
+                cul: cul
+            }
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', "http://localhost:3000/student");
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.send(JSON.stringify(NewStudent));
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 201) {  // 201은 생성됨을 나타내는 상태 코드
+                    console.log('추가 요청이 성공했습니다.');
+                } else {
+                    console.log('추가 요청이 실패했습니다.');
+                }
+            };
+        }
+
+    </script>
+
+</body>
+
+</html>
